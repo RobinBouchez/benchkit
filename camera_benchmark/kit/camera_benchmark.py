@@ -73,8 +73,8 @@ class CameraDriverBench(Benchmark):
         os.makedirs(self._build_dir, exist_ok=True)
     
     def build_bench(self,
-                    driver_type: str = "0",
-                    benchmark_duration_seconds: int = 5,
+                    driver_type: str,
+                    benchmark_duration_seconds: int,
                     **kwargs) -> None:
         """Build the benchmark with the given parameters."""
         dataset_path = "/home/user/workspace/cppdemo/benchkit/camera_benchmark/datasets/camera_samples"

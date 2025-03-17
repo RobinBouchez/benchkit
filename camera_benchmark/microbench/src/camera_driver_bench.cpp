@@ -40,6 +40,10 @@ void benchmark_camera(
     std::vector<double> depth_processing_times;
     std::vector<double> color_processing_times;
 
+    // Check overhead
+    // Measure camera initialization time
+    auto init_start = std::chrono::steady_clock::now();
+
     // Enable streams based on parameters
     if (enable_depth) {
         camera.enable_depth_stream();
@@ -48,8 +52,19 @@ void benchmark_camera(
         camera.enable_color_stream();
     }
 
+    auto stream_config_end = std::chrono::steady_clock::now();
+
     // Start pipeline
     camera.pipe_start();
+
+    auto pipe_start_end = std::chrono::steady_clock::now();
+
+    // Calculate initialization times
+    std::chrono::duration<double, std::milli> stream_config_duration =
+        stream_config_end - init_start;
+    std::chrono::duration<double, std::milli> pipe_start_duration =
+        pipe_start_end - stream_config_end;
+    std::chrono::duration<double, std::milli> total_init_duration = pipe_start_end - init_start;
 
     // Run benchmark for specified duration
     auto start_time = std::chrono::steady_clock::now();
@@ -130,6 +145,11 @@ void benchmark_camera(
     std::cout << "max_frame_time_ms=" << max_frame_time << std::endl;
     std::cout << "fps=" << fps << std::endl;
 
+    // Output initialization timing metrics
+    std::cout << "stream_config_time_ms=" << stream_config_duration.count() << std::endl;
+    std::cout << "pipe_start_time_ms=" << pipe_start_duration.count() << std::endl;
+    std::cout << "total_init_time_ms=" << total_init_duration.count() << std::endl;
+
     if (enable_depth) {
         std::cout << "avg_depth_processing_ms=" << avg_depth_time << std::endl;
     }
@@ -167,6 +187,5 @@ int main(int argc, char** argv)
 
     // Run benchmark
     benchmark_camera(*camera, enable_depth, enable_color, BENCHMARK_DURATION_SECONDS);
-
     return 0;
 }

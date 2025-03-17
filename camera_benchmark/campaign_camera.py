@@ -4,12 +4,13 @@ Campaign script for camera driver benchmarks.
 """
 import subprocess
 import os
+import pandas as pd
 
 from kit.camera_benchmark import CameraDriverBench
 
 from benchkit.campaign import CampaignCartesianProduct, CampaignSuite
 from benchkit.utils.dir import get_curdir
-
+DATASET_NAME = "dataset_test_20250311-113433"
 
 def can_access_realsense():
     try:
@@ -29,11 +30,11 @@ def main() -> None:
     
     # Define dataset path for virtual camera
     dataset_path = get_curdir(__file__).parent.parent / "datasets" / "camera_samples"
-    dataset_name = "hello"
+    dataset_name = DATASET_NAME
 
     # Determine which driver types to test
     use_real_camera = can_access_realsense() and os.geteuid() == 0  # Check if running as root
-    driver_types = ["0", "1"] if use_real_camera else ["1"]  # Only test virtual camera if no access
+    driver_types = ["0", "1"]# if use_real_camera else ["1"]  # Only test virtual camera if no access
     
     if not use_real_camera:
         print("Warning: No access to RealSense camera or not running as root. Only testing virtual camera.")
@@ -45,19 +46,19 @@ def main() -> None:
         benchmark=CameraDriverBench(camera_driver_path=camera_driver_path),
         nb_runs=3,
         variables={
-            "driver_type": driver_types,  # 0 = Real camera, 1 = Virtual camera
+            "driver_type": ["0", "1"],  # 0 = Real camera, 1 = Virtual camera
             "enable_depth": [True, False],
-            "enable_color": [True, False],
+            "enable_color": [True, True],
         },
         constants={
-            "benchmark_duration_seconds": 5,
+            "benchmark_duration_seconds": 1,
             "dataset_path": str(dataset_path),
             "dataset_name": str(dataset_name),
         },
         debug=False,
         gdb=False,
         enable_data_dir=True,
-        benchmark_duration_seconds=5,
+        benchmark_duration_seconds=1,
         pretty={
             "driver_type": {
                 "0": "RealSense Camera",
@@ -79,10 +80,11 @@ def main() -> None:
         x="driver_type",
         y="fps",
         hue="enable_depth",
-        # row="enable_color",
+        # style="enable_color",
         title="Camera Driver FPS Comparison",
     )
     
+
     # Compare frame processing times
     suite.generate_graph(
         plot_name="lineplot",
@@ -93,21 +95,65 @@ def main() -> None:
         title="Average Frame Processing Time",
     )
     
-    # # Compare min/max frame times
-    # data_transforms = [
-    #     {"input_cols": ["min_frame_time_ms", "max_frame_time_ms"], 
-    #      "output_col": "frame_time", 
-    #      "name_col": "metric"}
-    # ]
+    # Define a proper dataframe processor function
+    def transform_frame_times(dataframe):
+        # Create a copy to avoid modifying the original
+        result = dataframe.copy()
     
-    # suite.generate_graph(
-    #     plot_name="barplot",
-    #     data_transforms=data_transforms,
-    #     x="driver_type",
-    #     y="frame_time",
-    #     hue="metric",
-    #     title="Min/Max Frame Processing Times",
-    # )
+        # Create a new dataframe with the min/max values melted into a single column
+        melted_df = pd.melt(
+            result,
+            id_vars=["driver_type", "enable_depth", "enable_color"],
+            value_vars=["min_frame_time_ms", "max_frame_time_ms"],
+            var_name="metric",
+            value_name="frame_time"
+        )
+    
+        return melted_df
+
+    
+    suite.generate_graph(
+        plot_name="barplot",
+        process_dataframe=transform_frame_times,
+        x="driver_type",
+        y="frame_time",
+        hue="metric",
+        title="Min/Max Frame Processing Times",
+    )
+
+        # Define a transformation function for initialization times
+    def transform_init_times(dataframe):
+        # Create a copy to avoid modifying the original
+        result = dataframe.copy()
+        
+        # Create a new dataframe with the initialization time values melted into a single column
+        melted_df = pd.melt(
+            result,
+            id_vars=["driver_type", "enable_depth", "enable_color"],
+            value_vars=["stream_config_time_ms", "pipe_start_time_ms", "total_init_time_ms"],
+            var_name="initialization_phase",
+            value_name="time_ms"
+        )
+        
+        # Clean up the phase names for better display
+        melted_df['initialization_phase'] = melted_df['initialization_phase'].replace({
+            'stream_config_time_ms': 'Stream Configuration',
+            'pipe_start_time_ms': 'Pipeline Startup',
+            'total_init_time_ms': 'Total Initialization'
+        })
+        
+        return melted_df
+
+    # Generate graph for camera initialization times
+    suite.generate_graph(
+        plot_name="barplot",
+        process_dataframe=transform_init_times,
+        x="driver_type",
+        y="time_ms",
+        hue="initialization_phase",
+        title="Camera Initialization Times",
+        ylabel="Time (ms)",
+    )
 
 
 if __name__ == "__main__":

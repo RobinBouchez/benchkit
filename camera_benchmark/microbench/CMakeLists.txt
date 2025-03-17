@@ -10,7 +10,6 @@ set(DRIVER_TYPE 0 CACHE STRING "Driver type (0 for real, 1 for virtual)")
 set(BENCHMARK_DURATION_SECONDS 5 CACHE STRING "Duration of benchmark in seconds")
 set(DATASET_PATH "/home/user/workspace/cppdemo/src/dataset_test_20250311-113433" CACHE STRING "Path to dataset for virtual camera")
 set(DATASET_NAME "dataset_test_20250311-113433" CACHE STRING "Name of dataset for virtual camera")
-
 # Configure header file
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/include/config.h.in
